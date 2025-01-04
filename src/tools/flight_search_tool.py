@@ -3,14 +3,14 @@ from smolagents import tool
 @tool
 def flight_search_tool(origin: str, destination: str, date: str = None) -> str:
     """
-    Searches for flights from the origin to the destination on a specific date.
+    Search flights from `origin` to `destination` on a specific `date`.
 
     Args:
-        origin (str): The starting location (for example, airport code or city).
-        destination (str): The destination location (for example, airport code or city).
-        date (str, optional): Travel date in YYYY-MM-DD format. Defaults to None.
+        origin (str): The departure location (airport code or city).
+        destination (str): The arrival location (airport code or city).
+        date (str): The travel date in YYYY-MM-DD format. Defaults to None if unspecified.
 
     Returns:
-        str: Mock flight details such as price and date info.
+        str: Mock flight info, e.g. "Mock flight from LAX to JFK..."
     """
     return f"Mock flight from {origin} to {destination} on {date or 'some date'}, Price: $299"
