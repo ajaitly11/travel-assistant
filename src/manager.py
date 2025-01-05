@@ -1,44 +1,64 @@
-# Manager agent that orchestrates the sub-agents
-from smolagents import CodeAgent, ManagedAgent, HfApiModel
-from .flight_agent import create_flight_agent
-from .hotel_agent import create_hotel_agent
-from .weather_agent import create_weather_agent
+from smolagents import ToolCallingAgent, HfApiModel
+from .tools.flight_search_tool import flight_search_tool
+from .tools.hotel_search_tool import hotel_search_tool
+from .tools.weather_tool import weather_tool
+
+SYSTEM_PROMPT = """
+You are an expert manager agent. The user wants to plan a trip. You can call these tools:
+- flight_search_tool(origin=..., destination=..., date=...)
+- hotel_search_tool(city=...)
+- weather_tool(city=..., date=...) 
+- final_answer(...)
+
+**ALWAYS** output your tool calls in valid JSON format. 
+**NEVER** pass anything else to the functions except the arguments given above. STRICTLY FOLLOW THIS GUIDELINE
+**NEVER** produce random code or partial fences. 
+**Stop** after calling final_answer.
+
+You do not have any knowledge of flight details, hotel info, or weather. The only way you can get that info is by calling the correct tool.
+No answer from memory is allowed. You do not have real knowledge. You must call the tools for each subtask. If you produce any unrequested text or final answer that uses your memory, that is a violation.
+
+When the user says something like "I want to travel from X to Y on Z," do:
+  1. flight_search_tool
+  2. hotel_search_tool
+  3. weather_tool
+Then finalize with final_answer.
+
+If the user’s origin == destination, we can just do final_answer("Error: origin=destination").
+
+Return the combined info in the final_answer text.
+
+Here’s the JSON format for tool calls:
+
+Action:
+{
+  "tool_name": "...",
+  "tool_arguments": { ... }
+}
+
+If no more steps are needed, do final_answer(...). 
+Stop. Do not show any code blocks or random text.
+
+Now begin.
+
+{{managed_agents_descriptions}}
+"""
 
 def create_manager_agent():
-    # Build sub-agents
-    flight_agent = create_flight_agent()
-    hotel_agent = create_hotel_agent()
-    weather_agent = create_weather_agent()
+    # We define the tools that the manager can call:
+    tools = [flight_search_tool, hotel_search_tool, weather_tool]
 
-    # Wrap them as ManagedAgents
-    flight_managed = ManagedAgent(
-        agent=flight_agent,
-        name="flight_agent",
-        description="Agent that can search flights",
-        provide_run_summary=False,  # or True if you want
-    )
-    hotel_managed = ManagedAgent(
-        agent=hotel_agent,
-        name="hotel_agent",
-        description="Agent that finds hotels in a city",
-    )
-    weather_managed = ManagedAgent(
-        agent=weather_agent,
-        name="weather_agent",
-        description="Agent that checks the temperature and conditions of a city",
+    # Pick a model for the agent. This is a model that can call the tools.
+    model = HfApiModel(
+        model_id="codellama/CodeLlama-34b-Instruct-hf",
+        token=None,  # Optional, only needed for private models
+        timeout=45
     )
 
-    # Create the top-level CodeAgent that orchestrates
-    manager_model = HfApiModel("Qwen/Qwen2.5-Coder-32B-Instruct")  # example
-    manager = CodeAgent(
-        tools=[],  # no direct tools, we have sub-agents instead
-        model=manager_model,
-        managed_agents=[
-            flight_managed,
-            hotel_managed,
-            weather_managed,
-        ],
-        max_iterations=6,
-        additional_authorized_imports=["time"],  # etc.
+    manager_agent = ToolCallingAgent(
+        tools=tools,
+        model=model,
+        max_iterations=5,  
+        system_prompt=SYSTEM_PROMPT
     )
-    return manager
+    return manager_agent

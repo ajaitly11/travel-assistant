@@ -20,6 +20,6 @@ def hotel_search_tool(city: str) -> str:
     query = f"Hotels in {city} near city center"
     results = ddgs.text(query, max_results=1)
     for r in results:
-        return f"Hotels found (mock): {r['title']} => {r['href']}"
+        return f"Hotels found : {r['title']} => {r['href']}"
     
     return f"No hotel info found for {city}"
